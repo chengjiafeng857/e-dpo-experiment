@@ -24,8 +24,10 @@ training_args:
   num_train_epochs: 1
   logging_steps: 1
   report_to: "wandb"
-  save_strategy: "steps"
-  save_steps: 0.2
+  save_strategy: "epoch"      # save once per epoch
+  save_total_limit: 1         # keep only latest checkpoint
+  save_only_model: true       # do not save optimizer/scheduler/rng states
+  # save_steps: 0.2           # unused when save_strategy="epoch"
   seed: 42
   do_eval: true
   eval_strategy: "steps"
