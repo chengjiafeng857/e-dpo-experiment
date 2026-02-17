@@ -9,11 +9,11 @@ dataset:
 
 training_args:
   run_name: "llama3_instruct"
-  output_dir: "experiments/llama3_instruct"
+  output_dir: "/workspace/experiments/llama3_instruct"
   bf16: True
   beta: 0.01
   epsilon: 0.01
-  per_device_train_batch_size: 1
+  per_device_train_batch_size: 4
   gradient_accumulation_steps: 8
   gradient_checkpointing: True
   learning_rate: 7e-7

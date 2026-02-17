@@ -2,11 +2,21 @@
 set -euo pipefail
 
 # from repo root
-python3 -m venv .venv
+if [ ! -d .venv ]; then
+  if command -v python3.10 >/dev/null 2>&1; then
+    python3.10 -m venv .venv
+  else
+    echo "python3.10 not found. This repo expects Python 3.10."
+    echo "Install Python 3.10, then rerun this script."
+    exit 1
+  fi
+fi
 source .venv/bin/activate
 
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+if ! python -c "import accelerate, deepspeed, trl, transformers, datasets, omegaconf" >/dev/null 2>&1; then
+  python -m pip install --upgrade pip
+  python -m pip install -r requirements.txt
+fi
 
 export HF_TOKEN="hf_your_token_here"
 export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
