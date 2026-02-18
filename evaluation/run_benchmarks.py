@@ -1,6 +1,8 @@
 import argparse
+import re
 import shlex
 import subprocess
+import tempfile
 from pathlib import Path
 
 
@@ -109,6 +111,61 @@ def _run_or_print(cmd: str, execute: bool, cwd: str | None = None):
         subprocess.run(cmd, shell=True, check=True, cwd=cwd)
 
 
+def _prepare_alpacaeval_config(config_path: Path) -> Path:
+    config_dir = config_path.parent
+    templates_root = config_dir.parent
+    changed = False
+    updated_lines = []
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        for line in f:
+            match = re.match(r"^(\s*prompt_template:\s*)(\S+)(\s*)$", line)
+            if not match:
+                updated_lines.append(line)
+                continue
+
+            prefix, value, suffix = match.groups()
+            quote = ""
+            prompt_template = value
+            if (value.startswith('"') and value.endswith('"')) or (
+                value.startswith("'") and value.endswith("'")
+            ):
+                quote = value[0]
+                prompt_template = value[1:-1]
+
+            template_path = Path(prompt_template)
+            if template_path.is_absolute():
+                updated_lines.append(line)
+                continue
+
+            candidates = [
+                (config_dir / template_path),
+                (templates_root / template_path),
+            ]
+            resolved = next(
+                (candidate.resolve() for candidate in candidates if candidate.exists()),
+                None,
+            )
+            if resolved is None:
+                raise FileNotFoundError(
+                    f"prompt_template not found: {prompt_template} "
+                    f"(checked: {candidates[0]}, {candidates[1]})"
+                )
+
+            resolved_value = f"{quote}{resolved}{quote}" if quote else str(resolved)
+            updated_lines.append(f"{prefix}{resolved_value}{suffix}\n")
+            changed = True
+
+    if not changed:
+        return config_path
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".yaml", prefix="alpacaeval_", delete=False, encoding="utf-8"
+    ) as tmp:
+        tmp.writelines(updated_lines)
+        return Path(tmp.name)
+
+
 def _run_alpacaeval2(args: argparse.Namespace):
     Path(args.alpacaeval_output_dir).mkdir(parents=True, exist_ok=True)
     config_path = Path(args.alpacaeval_config).expanduser().resolve()
@@ -117,14 +174,21 @@ def _run_alpacaeval2(args: argparse.Namespace):
             f"AlpacaEval config not found: {config_path}. "
             "Check the path (for example, use 'Llama-3-...' not 'LLlama-3-...')."
         )
+    runtime_config_path = config_path
+    if args.execute:
+        runtime_config_path = _prepare_alpacaeval_config(config_path)
     cmd = (
         f"alpaca_eval evaluate_from_model "
-        f"--model_configs {shlex.quote(str(config_path))} "
+        f"--model_configs {shlex.quote(str(runtime_config_path))} "
         f"--output_path {shlex.quote(args.alpacaeval_output_dir)}"
     )
     if args.alpacaeval_extra_args:
         cmd = f"{cmd} {args.alpacaeval_extra_args}"
-    _run_or_print(cmd, execute=args.execute)
+    try:
+        _run_or_print(cmd, execute=args.execute)
+    finally:
+        if args.execute and runtime_config_path != config_path:
+            runtime_config_path.unlink(missing_ok=True)
 
 
 def _run_arenahard(args: argparse.Namespace):
