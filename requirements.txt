@@ -13,5 +13,9 @@ alpaca_eval==0.6.6
 fschat==0.2.36
 openai==1.61.1
 setuptools==75.8.0
-flash-attn==2.7.4.post1 ; platform_system == "Linux" and python_version == "3.10"
-flashinfer-python==0.2.2 ; platform_system == "Linux" and python_version == "3.10"
+wheel==0.45.1
+
+# Optional CUDA acceleration packages.
+# Install manually after torch is installed:
+#   pip install flash-attn==2.7.4.post1 --no-build-isolation
+#   pip install flashinfer-python==0.2.2

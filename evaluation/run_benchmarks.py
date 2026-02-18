@@ -111,9 +111,15 @@ def _run_or_print(cmd: str, execute: bool, cwd: str | None = None):
 
 def _run_alpacaeval2(args: argparse.Namespace):
     Path(args.alpacaeval_output_dir).mkdir(parents=True, exist_ok=True)
+    config_path = Path(args.alpacaeval_config).expanduser().resolve()
+    if not config_path.exists():
+        raise FileNotFoundError(
+            f"AlpacaEval config not found: {config_path}. "
+            "Check the path (for example, use 'Llama-3-...' not 'LLlama-3-...')."
+        )
     cmd = (
         f"alpaca_eval evaluate_from_model "
-        f"--model_configs {shlex.quote(args.alpacaeval_config)} "
+        f"--model_configs {shlex.quote(str(config_path))} "
         f"--output_path {shlex.quote(args.alpacaeval_output_dir)}"
     )
     if args.alpacaeval_extra_args:
