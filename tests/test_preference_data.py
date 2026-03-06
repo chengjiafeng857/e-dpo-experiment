@@ -7,6 +7,7 @@ from preference_data import (
     HH_DATASET_NAME,
     build_hh_dataset_load_kwargs,
     extract_anthropic_prompt,
+    hh_prompt_to_messages,
     normalize_hh_rows,
     split_hh_row,
     write_hh_debug_log,
@@ -17,6 +18,17 @@ class FakeTokenizer:
     def __call__(self, text, add_special_tokens=False):
         del add_special_tokens
         return {"input_ids": text.split()}
+
+
+class FakeChatTokenizer(FakeTokenizer):
+    chat_template = "fake"
+
+    def apply_chat_template(self, messages, tokenize=False, add_generation_prompt=False):
+        del tokenize
+        rendered = "".join(f"<{message['role']}>{message['content']}</{message['role']}>" for message in messages)
+        if add_generation_prompt:
+            rendered += "<assistant>"
+        return rendered
 
 
 class PreferenceDataTests(unittest.TestCase):
@@ -41,6 +53,25 @@ class PreferenceDataTests(unittest.TestCase):
     def test_split_hh_row_rejects_missing_marker(self):
         with self.assertRaises(ValueError):
             split_hh_row({"chosen": "no marker here", "rejected": "no marker here either"})
+
+    def test_hh_prompt_to_messages_parses_multi_turn_prompt(self):
+        prompt = (
+            "\n\nHuman: hello"
+            "\n\nAssistant: hi"
+            "\n\nHuman: tell me more"
+            "\n\nAssistant:"
+        )
+
+        messages = hh_prompt_to_messages(prompt)
+
+        self.assertEqual(
+            messages,
+            [
+                {"role": "user", "content": "hello"},
+                {"role": "assistant", "content": "hi"},
+                {"role": "user", "content": "tell me more"},
+            ],
+        )
 
     def test_build_hh_dataset_load_kwargs_returns_hf_load_arguments(self):
         load_kwargs = build_hh_dataset_load_kwargs(
@@ -83,6 +114,48 @@ class PreferenceDataTests(unittest.TestCase):
             ],
         )
 
+    def test_normalize_hh_rows_can_emit_conversational_examples(self):
+        tokenizer = FakeChatTokenizer()
+        rows = [
+            {
+                "chosen": (
+                    "\n\nHuman: hello"
+                    "\n\nAssistant: hi"
+                    "\n\nHuman: tell me more"
+                    "\n\nAssistant: certainly"
+                ),
+                "rejected": (
+                    "\n\nHuman: hello"
+                    "\n\nAssistant: hi"
+                    "\n\nHuman: tell me more"
+                    "\n\nAssistant: no"
+                ),
+            }
+        ]
+
+        normalized_rows = normalize_hh_rows(
+            rows,
+            tokenizer,
+            max_length=100,
+            max_prompt_length=100,
+            apply_chat_template=True,
+        )
+
+        self.assertEqual(
+            normalized_rows,
+            [
+                {
+                    "prompt": [
+                        {"role": "user", "content": "hello"},
+                        {"role": "assistant", "content": "hi"},
+                        {"role": "user", "content": "tell me more"},
+                    ],
+                    "chosen": [{"role": "assistant", "content": "certainly"}],
+                    "rejected": [{"role": "assistant", "content": "no"}],
+                }
+            ],
+        )
+
     def test_write_hh_debug_log_writes_three_samples(self):
         tokenizer = FakeTokenizer()
         normalized_rows = [
@@ -104,6 +177,7 @@ class PreferenceDataTests(unittest.TestCase):
 
             self.assertEqual(log_path, Path(tmpdir) / "hh_harmless-base_train_samples.log")
             contents = log_path.read_text(encoding="utf-8")
+            self.assertIn("apply_chat_template: False", contents)
             self.assertIn("samples_written: 3", contents)
             self.assertIn("=== sample_1 ===", contents)
             self.assertIn("=== sample_3 ===", contents)

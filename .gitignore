@@ -1,0 +1,56 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local environments and dependency caches
+.venv/
+venv/
+env/
+.uv-cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Training, logging, and experiment outputs
+debug_log/
+wandb/
+experiments/
+outputs/
+checkpoints/
+logs/
+*.log
+
+# Evaluation and generated artifacts
+evaluation/results/
+evaluation/repo/
+output_*.json
+*_rm.json
+*_bin.json
+all_outputs.json
+
+# Model / dataset caches
+.cache/
+huggingface/
+hf_*/
+
+# Local build / packaging artifacts
+build/
+dist/
+*.egg-info/

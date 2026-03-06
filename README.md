@@ -78,6 +78,7 @@ The training script also supports the Helpful/Harmless base tranches from `Anthr
 dataset:
   name: "Anthropic/hh-rlhf"
   data_dir: "helpful-base"  # or "harmless-base"
+  apply_chat_template: true  # optional; false keeps raw Anthropic transcripts
   train_split: "train"
   eval_split: "test"
 ```
@@ -88,9 +89,11 @@ The HH loader calls `load_dataset("Anthropic/hh-rlhf", data_dir=..., split=...)`
 - `chosen`: only the preferred final assistant reply
 - `rejected`: only the rejected final assistant reply
 
+With `apply_chat_template: true`, the HH loader first converts those Anthropic transcripts into structured chat messages so TRL can apply the tokenizer's model-specific chat template. When the flag is omitted or set to `false`, training keeps the raw Anthropic `Human:` / `Assistant:` text format.
+
 Rows are filtered using `max_prompt_length` and `max_length` before training. Helpful-base and harmless-base are configured separately; the provided HH configs train one subset at a time.
 
-When loading HH data, the script also writes three processed samples to `debug_log/hh_<data_dir>_<split>_samples.log` so you can verify the extracted `prompt`, `chosen`, and `rejected` fields.
+When loading HH data, the script also writes three processed samples to `debug_log/hh_<data_dir>_<split>_samples.log` so you can verify the final `prompt`, `chosen`, and `rejected` text that will be tokenized.
 
 Example configs:
 

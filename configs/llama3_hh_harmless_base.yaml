@@ -5,6 +5,7 @@ model:
 dataset:
   name: "Anthropic/hh-rlhf"
   data_dir: "harmless-base"
+  apply_chat_template: true
   train_split: "train"
   eval_split: "test"
 
