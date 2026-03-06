@@ -1,0 +1,36 @@
+model:
+  pretrained_model_name_or_path: "mistralai/Mistral-7B-Instruct-v0.2"
+  # attn_implementation: "flash_attention_2"
+
+dataset:
+  name: "Anthropic/hh-rlhf"
+  data_dir: "harmless-base"
+  train_split: "train"
+  eval_split: "test"
+
+training_args:
+  run_name: "mistral_hh_harmless_base"
+  output_dir: "experiments/mistral_hh_harmless_base"
+  bf16: True
+  beta: 0.01
+  epsilon: 0.01
+  truncation_mode: "keep_end"
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 8
+  gradient_checkpointing: True
+  learning_rate: 3e-7
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.1
+  max_length: 2048
+  max_prompt_length: 1800
+  num_train_epochs: 1
+  logging_steps: 1
+  report_to: "wandb"
+  save_strategy: "epoch"
+  save_total_limit: 1
+  save_only_model: true
+  seed: 42
+  do_eval: true
+  eval_strategy: "steps"
+  eval_steps: 400
+  per_device_eval_batch_size: 2

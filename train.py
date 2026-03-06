@@ -2,13 +2,12 @@ import argparse
 from omegaconf import OmegaConf
 
 import torch
-import torch.nn.functional as F
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from datasets import load_dataset
 from trl import set_seed
 
 from config import EpsilonDPOConfig
+from preference_data import load_preference_dataset
 from trainer import EpsilonDPOTrainer
 
 
@@ -20,15 +19,13 @@ def main(config):
     tokenizer = AutoTokenizer.from_pretrained(config.model.pretrained_model_name_or_path)
     tokenizer.pad_token = tokenizer.eos_token
 
-    columns = ['chosen', 'rejected']
-    dataset = load_dataset(config.dataset.name)
-    train_dataset = dataset[config.dataset.train_split].select_columns(columns)
+    training_args = EpsilonDPOConfig(**config.training_args)
+    train_dataset = load_preference_dataset(config.dataset, config.dataset.train_split, tokenizer, training_args)
     if config.dataset.eval_split:
-        eval_dataset = dataset[config.dataset.eval_split].select_columns(columns)
+        eval_dataset = load_preference_dataset(config.dataset, config.dataset.eval_split, tokenizer, training_args)
     else:
         eval_dataset = None
 
-    training_args = EpsilonDPOConfig(**config.training_args)
     trainer = EpsilonDPOTrainer(model=model,
                                 ref_model=ref_model,
                                 args=training_args,

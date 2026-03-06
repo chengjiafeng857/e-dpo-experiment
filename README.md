@@ -70,6 +70,37 @@ accelerate launch --config_file=configs/accelerate.yaml train.py --config=config
 
 If you want to enable FlashAttention 2, please uncomment the `attn_implementation: "flash_attention_2"` in `configs/mistral_instruct.yaml` and `configs/llama3_instruct.yaml`.
 
+### Hugging Face HH-base datasets
+
+The training script also supports the Helpful/Harmless base tranches from `Anthropic/hh-rlhf` with DPO-style preprocessing. Use the dataset config shape below:
+
+```yaml
+dataset:
+  name: "Anthropic/hh-rlhf"
+  data_dir: "helpful-base"  # or "harmless-base"
+  train_split: "train"
+  eval_split: "test"
+```
+
+The HH loader calls `load_dataset("Anthropic/hh-rlhf", data_dir=..., split=...)` and normalizes the raw Anthropic-style `chosen` and `rejected` transcripts into:
+
+- `prompt`: everything through the final `\n\nAssistant:`
+- `chosen`: only the preferred final assistant reply
+- `rejected`: only the rejected final assistant reply
+
+Rows are filtered using `max_prompt_length` and `max_length` before training. Helpful-base and harmless-base are configured separately; the provided HH configs train one subset at a time.
+
+When loading HH data, the script also writes three processed samples to `debug_log/hh_<data_dir>_<split>_samples.log` so you can verify the extracted `prompt`, `chosen`, and `rejected` fields.
+
+Example configs:
+
+```
+configs/mistral_hh_helpful_base.yaml
+configs/mistral_hh_harmless_base.yaml
+configs/llama3_hh_helpful_base.yaml
+configs/llama3_hh_harmless_base.yaml
+```
+
 
 ## Citation
 ```
