@@ -24,10 +24,23 @@ def extract_anthropic_prompt(prompt_and_response: str) -> str:
     return prompt_and_response[: search_term_idx + len(HH_ASSISTANT_MARKER)]
 
 
+def extract_shared_anthropic_prompt(chosen: str, rejected: str) -> str:
+    common_prefix_length = 0
+    for chosen_char, rejected_char in zip(chosen, rejected):
+        if chosen_char != rejected_char:
+            break
+        common_prefix_length += 1
+
+    if common_prefix_length == 0:
+        raise ValueError("Chosen and rejected responses do not share a common prompt prefix")
+
+    return extract_anthropic_prompt(chosen[:common_prefix_length])
+
+
 def split_hh_row(row: Mapping[str, Any]) -> dict[str, str]:
     chosen = row["chosen"]
     rejected = row["rejected"]
-    prompt = extract_anthropic_prompt(chosen)
+    prompt = extract_shared_anthropic_prompt(chosen, rejected)
     if not rejected.startswith(prompt):
         raise ValueError("Rejected response does not share the extracted Anthropic prompt prefix")
 
@@ -129,14 +142,22 @@ def normalize_hh_rows(
     max_length: int,
     max_prompt_length: int,
     apply_chat_template: bool = False,
-) -> list[dict[str, Any]]:
+    return_stats: bool = False,
+) -> list[dict[str, Any]] | tuple[list[dict[str, Any]], dict[str, int]]:
     normalized_rows = []
+    skipped_invalid_rows = 0
     for row in rows:
-        normalized_row = split_hh_row(row)
+        try:
+            normalized_row = split_hh_row(row)
+        except ValueError:
+            skipped_invalid_rows += 1
+            continue
         if apply_chat_template:
             normalized_row = hh_row_to_conversational(normalized_row)
         if hh_row_within_length(normalized_row, tokenizer, max_length, max_prompt_length):
             normalized_rows.append(normalized_row)
+    if return_stats:
+        return normalized_rows, {"skipped_invalid_rows": skipped_invalid_rows}
     return normalized_rows
 
 
@@ -160,6 +181,7 @@ def write_hh_debug_log(
     max_length: int,
     max_prompt_length: int,
     total_rows: int,
+    skipped_invalid_rows: int = 0,
     apply_chat_template: bool = False,
     debug_dir: str | Path = "debug_log",
 ) -> Path:
@@ -173,6 +195,7 @@ def write_hh_debug_log(
         f"split: {split}",
         f"raw_rows: {total_rows}",
         f"normalized_rows: {len(normalized_rows)}",
+        f"skipped_invalid_rows: {skipped_invalid_rows}",
         f"max_length: {max_length}",
         f"max_prompt_length: {max_prompt_length}",
         f"apply_chat_template: {apply_chat_template}",
@@ -218,17 +241,19 @@ def load_hh_dataset(
     apply_chat_template = bool(config_value(dataset_config, "apply_chat_template", False))
     load_kwargs = build_hh_dataset_load_kwargs(dataset_config, split)
     rows = load_dataset(load_kwargs["dataset_name"], data_dir=load_kwargs["data_dir"], split=load_kwargs["split"])
-    normalized_rows = normalize_hh_rows(
+    normalized_rows, stats = normalize_hh_rows(
         rows,
         tokenizer,
         max_length,
         max_prompt_length,
         apply_chat_template=apply_chat_template,
+        return_stats=True,
     )
     if not normalized_rows:
         raise ValueError(
             "No HH rows remain after DPO-style normalization and filtering for "
-            f"data_dir='{load_kwargs['data_dir']}', split='{split}'"
+            f"data_dir='{load_kwargs['data_dir']}', split='{split}'. "
+            f"Skipped invalid rows: {stats['skipped_invalid_rows']}"
         )
     write_hh_debug_log(
         normalized_rows=normalized_rows,
@@ -238,6 +263,7 @@ def load_hh_dataset(
         max_length=max_length,
         max_prompt_length=max_prompt_length,
         total_rows=len(rows),
+        skipped_invalid_rows=stats["skipped_invalid_rows"],
         apply_chat_template=apply_chat_template,
     )
     return Dataset.from_list(normalized_rows)

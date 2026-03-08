@@ -7,6 +7,7 @@ from preference_data import (
     HH_DATASET_NAME,
     build_hh_dataset_load_kwargs,
     extract_anthropic_prompt,
+    extract_shared_anthropic_prompt,
     hh_prompt_to_messages,
     normalize_hh_rows,
     split_hh_row,
@@ -50,9 +51,38 @@ class PreferenceDataTests(unittest.TestCase):
             "\n\nHuman: hello\n\nAssistant: hi\n\nHuman: tell me more\n\nAssistant:",
         )
 
+    def test_extract_shared_anthropic_prompt_ignores_assistant_marker_inside_reply(self):
+        chosen = (
+            "\n\nHuman: explain the token"
+            "\n\nAssistant: The literal string \\n\\nAssistant: can appear in text."
+        )
+        rejected = "\n\nHuman: explain the token\n\nAssistant: It is a role prefix."
+
+        prompt = extract_shared_anthropic_prompt(chosen, rejected)
+
+        self.assertEqual(prompt, "\n\nHuman: explain the token\n\nAssistant:")
+
     def test_split_hh_row_rejects_missing_marker(self):
         with self.assertRaises(ValueError):
             split_hh_row({"chosen": "no marker here", "rejected": "no marker here either"})
+
+    def test_split_hh_row_uses_shared_prompt_prefix(self):
+        row = {
+            "chosen": (
+                "\n\nHuman: explain the token"
+                "\n\nAssistant: The literal string \\n\\nAssistant: can appear in text."
+            ),
+            "rejected": "\n\nHuman: explain the token\n\nAssistant: It is a role prefix.",
+        }
+
+        self.assertEqual(
+            split_hh_row(row),
+            {
+                "prompt": "\n\nHuman: explain the token\n\nAssistant:",
+                "chosen": " The literal string \\n\\nAssistant: can appear in text.",
+                "rejected": " It is a role prefix.",
+            },
+        )
 
     def test_hh_prompt_to_messages_parses_multi_turn_prompt(self):
         prompt = (
@@ -178,6 +208,7 @@ class PreferenceDataTests(unittest.TestCase):
             self.assertEqual(log_path, Path(tmpdir) / "hh_harmless-base_train_samples.log")
             contents = log_path.read_text(encoding="utf-8")
             self.assertIn("apply_chat_template: False", contents)
+            self.assertIn("skipped_invalid_rows: 0", contents)
             self.assertIn("samples_written: 3", contents)
             self.assertIn("=== sample_1 ===", contents)
             self.assertIn("=== sample_3 ===", contents)
