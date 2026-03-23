@@ -2,10 +2,13 @@ model:
   pretrained_model_name_or_path: "W-61/hh-harmless-base-llama3-8b-sft"
   # attn_implementation: "flash_attention_2"
 
+tokenizer:
+  name_or_path: "meta-llama/Meta-Llama-3-8B"
+
 dataset:
   name: "Anthropic/hh-rlhf"
   data_dir: "harmless-base"
-  apply_chat_template: true
+  apply_chat_template: false
   train_split: "train"
   eval_split: "test"
 

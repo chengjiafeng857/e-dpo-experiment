@@ -3,11 +3,12 @@ from omegaconf import OmegaConf
 
 import torch
 
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM
 from trl import set_seed
 
 from config import EpsilonDPOConfig
 from preference_data import load_preference_dataset
+from tokenizer_utils import load_tokenizer
 from trainer import EpsilonDPOTrainer
 
 
@@ -16,7 +17,7 @@ def main(config):
 
     model = AutoModelForCausalLM.from_pretrained(**config.model, torch_dtype=torch.bfloat16)
     ref_model = AutoModelForCausalLM.from_pretrained(**config.model, torch_dtype=torch.bfloat16)
-    tokenizer = AutoTokenizer.from_pretrained(config.model.pretrained_model_name_or_path)
+    tokenizer = load_tokenizer(config)
     tokenizer.pad_token = tokenizer.eos_token
 
     training_args = EpsilonDPOConfig(**config.training_args)
