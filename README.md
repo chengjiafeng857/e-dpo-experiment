@@ -66,9 +66,39 @@ accelerate launch --config_file=configs/accelerate.yaml train.py --config=config
 
 # Llama-3-Instruct
 accelerate launch --config_file=configs/accelerate.yaml train.py --config=configs/llama3_instruct.yaml
+
+# Llama-3 + HH-RLHF helpful-base
+accelerate launch --config_file=configs/accelerate.yaml train.py --config=configs/llama3_hh_helpful.yaml
+
+# Llama-3 + HH-RLHF harmless-base
+accelerate launch --config_file=configs/accelerate.yaml train.py --config=configs/llama3_hh_harmless.yaml
 ```
 
 If you want to enable FlashAttention 2, please uncomment the `attn_implementation: "flash_attention_2"` in `configs/mistral_instruct.yaml` and `configs/llama3_instruct.yaml`.
+
+## Dataset Normalization
+
+The training entrypoint normalizes supported preference datasets into the same internal contract before passing them to `trl.DPOTrainer`:
+
+- `chosen: list[{"role": str, "content": str}]`
+- `rejected: list[{"role": str, "content": str}]`
+
+Supported dataset formats:
+
+- `princeton-nlp/*ultrafeedback`: passed through as conversational `chosen` and `rejected`.
+- `Anthropic/hh-rlhf` with `dataset.config_name` set to `helpful-base` or `harmless-base`: raw `Human:` / `Assistant:` transcripts are parsed into multi-turn conversations, malformed rows are filtered out, and the resulting `chosen` and `rejected` conversations are handed to TRL unchanged.
+
+For HH-RLHF, the loader preserves the full conversation history in both branches instead of collapsing the data to a single prompt/completion pair. TRL then extracts the shared prompt prefix during its existing preprocessing flow.
+
+Example dataset config:
+
+```yaml
+dataset:
+  name: "Anthropic/hh-rlhf"
+  config_name: "helpful-base"
+  train_split: "train"
+  eval_split: "test"
+```
 
 
 ## Citation
