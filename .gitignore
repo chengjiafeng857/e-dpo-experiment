@@ -1,0 +1,5 @@
+/__pycache__/
+*.pyc
+*.pyd
+hf_*/
+.DS_Store
