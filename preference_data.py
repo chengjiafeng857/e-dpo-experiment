@@ -5,27 +5,33 @@ from datasets import Dataset, DatasetDict, load_dataset
 
 
 HH_ROLE_PATTERN = re.compile(r"(?:^|\n\n)(Human|Humans|Assistant): ")
-SUPPORTED_HH_CONFIGS = {"helpful-base", "harmless-base"}
+SUPPORTED_HH_DIRS = {"helpful-base", "harmless-base"}
 PREFERENCE_COLUMNS = ["chosen", "rejected"]
 
 
 def load_preference_datasets(dataset_config: Any) -> DatasetDict:
-    config_name = dataset_config.get("config_name")
-    dataset = load_dataset(dataset_config.name, name=config_name)
-    return normalize_preference_dataset(dataset, dataset_config.name, config_name=config_name)
+    dataset_name = dataset_config.get("name")
+    dataset_dir = dataset_config.get("dir", dataset_config.get("data_dir"))
+
+    if dataset_name == "Anthropic/hh-rlhf":
+        dataset = load_dataset(dataset_name, data_dir=dataset_dir)
+        return normalize_preference_dataset(dataset, dataset_name, dataset_dir=dataset_dir)
+
+    dataset = load_dataset(dataset_name)
+    return normalize_preference_dataset(dataset, dataset_name)
 
 
 def normalize_preference_dataset(
-    dataset: DatasetDict, dataset_name: str, config_name: Optional[str] = None
+    dataset: DatasetDict, dataset_name: str, dataset_dir: Optional[str] = None
 ) -> DatasetDict:
     if dataset_name.startswith("princeton-nlp/") and dataset_name.endswith("ultrafeedback"):
         return DatasetDict({split: ds.select_columns(PREFERENCE_COLUMNS) for split, ds in dataset.items()})
 
     if dataset_name == "Anthropic/hh-rlhf":
-        if config_name not in SUPPORTED_HH_CONFIGS:
+        if dataset_dir not in SUPPORTED_HH_DIRS:
             raise ValueError(
-                f"Unsupported config_name for {dataset_name}: {config_name!r}. "
-                f"Expected one of {sorted(SUPPORTED_HH_CONFIGS)}."
+                f"Unsupported dir for {dataset_name}: {dataset_dir!r}. "
+                f"Expected one of {sorted(SUPPORTED_HH_DIRS)}."
             )
         return DatasetDict({split: _normalize_hh_split(ds) for split, ds in dataset.items()})
 

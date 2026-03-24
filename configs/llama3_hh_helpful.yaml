@@ -4,7 +4,7 @@ model:
 
 dataset:
   name: "Anthropic/hh-rlhf"
-  config_name: "helpful-base"
+  dir: "helpful-base"
   train_split: "train"
   eval_split: "test"
 

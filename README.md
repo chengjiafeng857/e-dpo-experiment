@@ -86,7 +86,8 @@ The training entrypoint normalizes supported preference datasets into the same i
 Supported dataset formats:
 
 - `princeton-nlp/*ultrafeedback`: passed through as conversational `chosen` and `rejected`.
-- `Anthropic/hh-rlhf` with `dataset.config_name` set to `helpful-base` or `harmless-base`: raw `Human:` / `Assistant:` transcripts are parsed into multi-turn conversations, malformed rows are filtered out, and the resulting `chosen` and `rejected` conversations are handed to TRL unchanged.
+- `Anthropic/hh-rlhf` with `dataset.dir` set to `helpful-base` or `harmless-base`:
+  raw `Human:` / `Assistant:` transcripts are parsed into multi-turn conversations, malformed rows are filtered out, and the resulting `chosen` and `rejected` conversations are handed to TRL unchanged.
 
 For HH-RLHF, the loader preserves the full conversation history in both branches instead of collapsing the data to a single prompt/completion pair. TRL then extracts the shared prompt prefix during its existing preprocessing flow.
 
@@ -95,7 +96,7 @@ Example dataset config:
 ```yaml
 dataset:
   name: "Anthropic/hh-rlhf"
-  config_name: "helpful-base"
+  dir: "helpful-base"
   train_split: "train"
   eval_split: "test"
 ```

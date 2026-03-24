@@ -141,7 +141,7 @@ class NormalizePreferenceDatasetTest(unittest.TestCase):
             }
         )
 
-        normalized = normalize_preference_dataset(dataset, "Anthropic/hh-rlhf", config_name="helpful-base")
+        normalized = normalize_preference_dataset(dataset, "Anthropic/hh-rlhf", dataset_dir="helpful-base")
 
         self.assertEqual(normalized["train"].num_rows, 1)
         self.assertEqual(list(normalized["train"].column_names), ["chosen", "rejected"])
@@ -151,7 +151,7 @@ class NormalizePreferenceDatasetTest(unittest.TestCase):
         self.assertEqual(row["chosen"][1], {"role": "assistant", "content": "Helpful answer"})
         self.assertEqual(row["rejected"][1], {"role": "assistant", "content": "Harmful answer"})
 
-    def test_loader_uses_config_name_and_returns_normalized_dataset(self):
+    def test_loader_uses_dir_and_returns_normalized_dataset(self):
         raw_dataset = DatasetDict(
             {
                 "train": Dataset.from_list(
@@ -172,13 +172,13 @@ class NormalizePreferenceDatasetTest(unittest.TestCase):
                 ),
             }
         )
-        dataset_config = SimpleNamespace(name="Anthropic/hh-rlhf", config_name="harmless-base")
+        dataset_config = SimpleNamespace(name="Anthropic/hh-rlhf", dir="harmless-base")
         dataset_config.get = lambda key, default=None: getattr(dataset_config, key, default)
 
         with patch("preference_data.load_dataset", return_value=raw_dataset) as mock_load_dataset:
             normalized = load_preference_datasets(dataset_config)
 
-        mock_load_dataset.assert_called_once_with("Anthropic/hh-rlhf", name="harmless-base")
+        mock_load_dataset.assert_called_once_with("Anthropic/hh-rlhf", data_dir="harmless-base")
         self.assertEqual(list(normalized["train"].column_names), ["chosen", "rejected"])
         self.assertEqual(normalized["test"][0]["chosen"][0]["content"], "Bye")
 
