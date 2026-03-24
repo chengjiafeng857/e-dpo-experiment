@@ -59,6 +59,14 @@ class EpsilonDPOTrainer(DPOTrainer):
             peft_config=peft_config,
         )
 
+        # DPO loss is already reduced in `compute_loss`, and this trainer does not use
+        # `num_items_in_batch`-style custom normalization. Some causal LM forward
+        # signatures expose `**kwargs`, which makes `Trainer` assume the model handles
+        # accumulation-aware loss scaling and skip dividing by
+        # `gradient_accumulation_steps`. That yields logged/train losses inflated by the
+        # accumulation factor.
+        # self.model_accepts_loss_kwargs = False
+
         self.epsilon = args.epsilon
         self.steps = 0.
     
