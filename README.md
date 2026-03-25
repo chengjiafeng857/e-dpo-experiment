@@ -91,7 +91,7 @@ The HH loader calls `load_dataset("Anthropic/hh-rlhf", data_dir=..., split=...)`
 
 With `apply_chat_template: true`, the HH loader first converts those Anthropic transcripts into structured chat messages so TRL can apply the tokenizer's model-specific chat template. When the flag is omitted or set to `false`, training keeps the raw Anthropic `Human:` / `Assistant:` text format.
 
-Rows are filtered using `max_length` before training, and `max_prompt_length` can be set as an additional prompt-only cap. When `max_prompt_length` is omitted, the HH loader falls back to `max_length`. Helpful-base and harmless-base are configured separately; the provided HH configs train one subset at a time.
+HH preprocessing normalizes Anthropic transcripts into `prompt` / `chosen` / `rejected` fields but does not filter or truncate rows by length. Length handling is deferred to the trainer, which truncates by `max_length` during batching. Helpful-base and harmless-base are configured separately; the provided HH configs train one subset at a time.
 
 When loading HH data, the script also writes three processed samples to `debug_log/hh_<data_dir>_<split>_samples.log` so you can verify the final `prompt`, `chosen`, and `rejected` text that will be tokenized.
 

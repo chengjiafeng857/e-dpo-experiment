@@ -23,7 +23,6 @@ training_args:
   lr_scheduler_type: "cosine"
   warmup_ratio: 0.1
   max_length: 512
-  max_prompt_length: 256
   num_train_epochs: 1
   logging_steps: 1
   report_to: "wandb"

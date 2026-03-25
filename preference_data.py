@@ -117,30 +117,6 @@ def render_preference_row(row: Mapping[str, Any], tokenizer: Any) -> dict[str, s
         "chosen": prompt_chosen[len(prompt) :],
         "rejected": prompt_rejected[len(prompt) :],
     }
-
-
-def effective_max_prompt_length(max_length: int, max_prompt_length: int | None) -> int:
-    return max_length if max_prompt_length is None else max_prompt_length
-
-
-def hh_row_within_length(
-    row: Mapping[str, Any],
-    tokenizer: Any,
-    max_length: int,
-    max_prompt_length: int | None,
-) -> bool:
-    max_prompt_length = effective_max_prompt_length(max_length, max_prompt_length)
-    rendered_row = render_preference_row(row, tokenizer)
-    prompt_tokens = tokenizer(rendered_row["prompt"], add_special_tokens=False)["input_ids"]
-    chosen_tokens = tokenizer(rendered_row["chosen"], add_special_tokens=False)["input_ids"]
-    rejected_tokens = tokenizer(rendered_row["rejected"], add_special_tokens=False)["input_ids"]
-    return (
-        len(prompt_tokens) <= max_prompt_length
-        and len(prompt_tokens) + len(chosen_tokens) <= max_length
-        and len(prompt_tokens) + len(rejected_tokens) <= max_length
-    )
-
-
 def normalize_hh_rows(
     rows: list[Mapping[str, Any]],
     tokenizer: Any,
@@ -159,8 +135,7 @@ def normalize_hh_rows(
             continue
         if apply_chat_template:
             normalized_row = hh_row_to_conversational(normalized_row)
-        if hh_row_within_length(normalized_row, tokenizer, max_length, max_prompt_length):
-            normalized_rows.append(normalized_row)
+        normalized_rows.append(normalized_row)
     if return_stats:
         return normalized_rows, {"skipped_invalid_rows": skipped_invalid_rows}
     return normalized_rows
@@ -190,7 +165,6 @@ def write_hh_debug_log(
     apply_chat_template: bool = False,
     debug_dir: str | Path = "debug_log",
 ) -> Path:
-    resolved_max_prompt_length = effective_max_prompt_length(max_length, max_prompt_length)
     debug_dir = Path(debug_dir)
     debug_dir.mkdir(parents=True, exist_ok=True)
     log_path = debug_dir / f"hh_{data_dir}_{split}_samples.log"
@@ -204,7 +178,6 @@ def write_hh_debug_log(
         f"skipped_invalid_rows: {skipped_invalid_rows}",
         f"max_length: {max_length}",
         f"max_prompt_length: {max_prompt_length}",
-        f"effective_max_prompt_length: {resolved_max_prompt_length}",
         f"apply_chat_template: {apply_chat_template}",
         f"samples_written: {min(3, len(normalized_rows))}",
         "",
@@ -258,7 +231,7 @@ def load_hh_dataset(
     )
     if not normalized_rows:
         raise ValueError(
-            "No HH rows remain after DPO-style normalization and filtering for "
+            "No HH rows remain after DPO-style normalization for "
             f"data_dir='{load_kwargs['data_dir']}', split='{split}'. "
             f"Skipped invalid rows: {stats['skipped_invalid_rows']}"
         )

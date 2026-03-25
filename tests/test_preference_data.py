@@ -118,7 +118,7 @@ class PreferenceDataTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             build_hh_dataset_load_kwargs({"name": HH_DATASET_NAME, "data_dir": "helpful-online"}, "train")
 
-    def test_normalize_hh_rows_filters_overlength_rows(self):
+    def test_normalize_hh_rows_keeps_rows_even_when_they_exceed_length_limits(self):
         tokenizer = FakeTokenizer()
         rows = [
             {
@@ -140,32 +140,11 @@ class PreferenceDataTests(unittest.TestCase):
                     "prompt": "\n\nHuman: short prompt\n\nAssistant:",
                     "chosen": " good",
                     "rejected": " bad",
-                }
-            ],
-        )
-
-    def test_normalize_hh_rows_uses_max_length_when_max_prompt_length_is_omitted(self):
-        tokenizer = FakeTokenizer()
-        rows = [
-            {
-                "chosen": "\n\nHuman: this prompt is much too long\n\nAssistant: ok",
-                "rejected": "\n\nHuman: this prompt is much too long\n\nAssistant: no",
-            },
-            {
-                "chosen": "\n\nHuman: short prompt\n\nAssistant: this completion is too long today",
-                "rejected": "\n\nHuman: short prompt\n\nAssistant: this completion is too long today",
-            },
-        ]
-
-        normalized_rows = normalize_hh_rows(rows, tokenizer, max_length=9, max_prompt_length=None)
-
-        self.assertEqual(
-            normalized_rows,
-            [
+                },
                 {
                     "prompt": "\n\nHuman: this prompt is much too long\n\nAssistant:",
-                    "chosen": " ok",
-                    "rejected": " no",
+                    "chosen": " okay",
+                    "rejected": " nope",
                 }
             ],
         )
@@ -240,7 +219,7 @@ class PreferenceDataTests(unittest.TestCase):
             self.assertIn("=== sample_3 ===", contents)
             self.assertNotIn("=== sample_4 ===", contents)
 
-    def test_write_hh_debug_log_records_effective_prompt_length_fallback(self):
+    def test_write_hh_debug_log_records_configured_lengths(self):
         tokenizer = FakeTokenizer()
         normalized_rows = [{"prompt": "prompt", "chosen": "chosen", "rejected": "rejected"}]
 
@@ -258,7 +237,6 @@ class PreferenceDataTests(unittest.TestCase):
 
             contents = log_path.read_text(encoding="utf-8")
             self.assertIn("max_prompt_length: None", contents)
-            self.assertIn("effective_max_prompt_length: 128", contents)
 
 
 @unittest.skipUnless(
