@@ -119,12 +119,17 @@ def render_preference_row(row: Mapping[str, Any], tokenizer: Any) -> dict[str, s
     }
 
 
+def effective_max_prompt_length(max_length: int, max_prompt_length: int | None) -> int:
+    return max_length if max_prompt_length is None else max_prompt_length
+
+
 def hh_row_within_length(
     row: Mapping[str, Any],
     tokenizer: Any,
     max_length: int,
-    max_prompt_length: int,
+    max_prompt_length: int | None,
 ) -> bool:
+    max_prompt_length = effective_max_prompt_length(max_length, max_prompt_length)
     rendered_row = render_preference_row(row, tokenizer)
     prompt_tokens = tokenizer(rendered_row["prompt"], add_special_tokens=False)["input_ids"]
     chosen_tokens = tokenizer(rendered_row["chosen"], add_special_tokens=False)["input_ids"]
@@ -140,7 +145,7 @@ def normalize_hh_rows(
     rows: list[Mapping[str, Any]],
     tokenizer: Any,
     max_length: int,
-    max_prompt_length: int,
+    max_prompt_length: int | None,
     apply_chat_template: bool = False,
     return_stats: bool = False,
 ) -> list[dict[str, Any]] | tuple[list[dict[str, Any]], dict[str, int]]:
@@ -179,12 +184,13 @@ def write_hh_debug_log(
     data_dir: str,
     split: str,
     max_length: int,
-    max_prompt_length: int,
+    max_prompt_length: int | None,
     total_rows: int,
     skipped_invalid_rows: int = 0,
     apply_chat_template: bool = False,
     debug_dir: str | Path = "debug_log",
 ) -> Path:
+    resolved_max_prompt_length = effective_max_prompt_length(max_length, max_prompt_length)
     debug_dir = Path(debug_dir)
     debug_dir.mkdir(parents=True, exist_ok=True)
     log_path = debug_dir / f"hh_{data_dir}_{split}_samples.log"
@@ -198,6 +204,7 @@ def write_hh_debug_log(
         f"skipped_invalid_rows: {skipped_invalid_rows}",
         f"max_length: {max_length}",
         f"max_prompt_length: {max_prompt_length}",
+        f"effective_max_prompt_length: {resolved_max_prompt_length}",
         f"apply_chat_template: {apply_chat_template}",
         f"samples_written: {min(3, len(normalized_rows))}",
         "",
@@ -234,7 +241,7 @@ def load_hh_dataset(
     split: str,
     tokenizer: Any,
     max_length: int,
-    max_prompt_length: int,
+    max_prompt_length: int | None,
 ):
     from datasets import Dataset, load_dataset
 

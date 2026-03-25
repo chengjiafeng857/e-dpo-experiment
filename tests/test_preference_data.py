@@ -144,6 +144,32 @@ class PreferenceDataTests(unittest.TestCase):
             ],
         )
 
+    def test_normalize_hh_rows_uses_max_length_when_max_prompt_length_is_omitted(self):
+        tokenizer = FakeTokenizer()
+        rows = [
+            {
+                "chosen": "\n\nHuman: this prompt is much too long\n\nAssistant: ok",
+                "rejected": "\n\nHuman: this prompt is much too long\n\nAssistant: no",
+            },
+            {
+                "chosen": "\n\nHuman: short prompt\n\nAssistant: this completion is too long today",
+                "rejected": "\n\nHuman: short prompt\n\nAssistant: this completion is too long today",
+            },
+        ]
+
+        normalized_rows = normalize_hh_rows(rows, tokenizer, max_length=9, max_prompt_length=None)
+
+        self.assertEqual(
+            normalized_rows,
+            [
+                {
+                    "prompt": "\n\nHuman: this prompt is much too long\n\nAssistant:",
+                    "chosen": " ok",
+                    "rejected": " no",
+                }
+            ],
+        )
+
     def test_normalize_hh_rows_can_emit_conversational_examples(self):
         tokenizer = FakeChatTokenizer()
         rows = [
@@ -213,6 +239,26 @@ class PreferenceDataTests(unittest.TestCase):
             self.assertIn("=== sample_1 ===", contents)
             self.assertIn("=== sample_3 ===", contents)
             self.assertNotIn("=== sample_4 ===", contents)
+
+    def test_write_hh_debug_log_records_effective_prompt_length_fallback(self):
+        tokenizer = FakeTokenizer()
+        normalized_rows = [{"prompt": "prompt", "chosen": "chosen", "rejected": "rejected"}]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            log_path = write_hh_debug_log(
+                normalized_rows=normalized_rows,
+                tokenizer=tokenizer,
+                data_dir="harmless-base",
+                split="train",
+                max_length=128,
+                max_prompt_length=None,
+                total_rows=1,
+                debug_dir=tmpdir,
+            )
+
+            contents = log_path.read_text(encoding="utf-8")
+            self.assertIn("max_prompt_length: None", contents)
+            self.assertIn("effective_max_prompt_length: 128", contents)
 
 
 @unittest.skipUnless(
