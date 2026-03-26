@@ -89,7 +89,7 @@ The HH loader calls `load_dataset("Anthropic/hh-rlhf", data_dir=..., split=...)`
 - `chosen`: only the preferred final assistant reply
 - `rejected`: only the rejected final assistant reply
 
-With `apply_chat_template: true`, the HH loader first converts those Anthropic transcripts into structured chat messages so TRL can apply the tokenizer's model-specific chat template. When the flag is omitted or set to `false`, training keeps the raw Anthropic `Human:` / `Assistant:` text format.
+With `apply_chat_template: true`, the HH loader applies the tokenizer chat template during preprocessing and stores explicit string `prompt` / `chosen` / `rejected` fields before handing the dataset to TRL. The loader also accepts the reference-style `chat_template_name` option and can fall back to local Llama 3 / Qwen 3 templates when the tokenizer does not ship one. When the flag is omitted or set to `false`, training keeps the raw Anthropic `Human:` / `Assistant:` text format.
 
 HH preprocessing normalizes Anthropic transcripts into `prompt` / `chosen` / `rejected` fields but does not filter or truncate rows by length. Length handling is deferred to the trainer, which truncates by `max_length` during batching. Helpful-base and harmless-base are configured separately; the provided HH configs train one subset at a time.
 

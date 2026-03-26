@@ -114,6 +114,17 @@ class PreferenceDataTests(unittest.TestCase):
             {"dataset_name": HH_DATASET_NAME, "data_dir": "helpful-base", "split": "train"},
         )
 
+    def test_build_hh_dataset_load_kwargs_accepts_reference_style_keys(self):
+        load_kwargs = build_hh_dataset_load_kwargs(
+            {"dataset_name": HH_DATASET_NAME, "config_name": "harmless-base"},
+            "test",
+        )
+
+        self.assertEqual(
+            load_kwargs,
+            {"dataset_name": HH_DATASET_NAME, "data_dir": "harmless-base", "split": "test"},
+        )
+
     def test_build_hh_dataset_load_kwargs_rejects_unknown_data_dir(self):
         with self.assertRaises(ValueError):
             build_hh_dataset_load_kwargs({"name": HH_DATASET_NAME, "data_dir": "helpful-online"}, "train")
@@ -149,7 +160,7 @@ class PreferenceDataTests(unittest.TestCase):
             ],
         )
 
-    def test_normalize_hh_rows_can_emit_conversational_examples(self):
+    def test_normalize_hh_rows_applies_chat_template_to_explicit_strings(self):
         tokenizer = FakeChatTokenizer()
         rows = [
             {
@@ -180,13 +191,9 @@ class PreferenceDataTests(unittest.TestCase):
             normalized_rows,
             [
                 {
-                    "prompt": [
-                        {"role": "user", "content": "hello"},
-                        {"role": "assistant", "content": "hi"},
-                        {"role": "user", "content": "tell me more"},
-                    ],
-                    "chosen": [{"role": "assistant", "content": "certainly"}],
-                    "rejected": [{"role": "assistant", "content": "no"}],
+                    "prompt": "<user>hello</user><assistant>hi</assistant><user>tell me more</user><assistant>",
+                    "chosen": "certainly</assistant>",
+                    "rejected": "no</assistant>",
                 }
             ],
         )

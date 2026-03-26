@@ -3,11 +3,16 @@ model:
   # attn_implementation: "flash_attention_2"
 
 dataset:
-  name: "Anthropic/hh-rlhf"
+  dataset_name: "Anthropic/hh-rlhf"
   data_dir: "helpful-base"
-  apply_chat_template: false
-  train_split: "train"
-  eval_split: "test"
+  generated_data: false
+  chat_template: true
+  chat_template_name: "llama3"
+  subset: "train[:100%]"
+  eval_subset: null
+  val_ratio: 0.1
+  seed: 42
+  max_len: 512
 
 training_args:
   run_name: "llama3_hh_helpful_base"

@@ -63,7 +63,7 @@ def maybe_apply_chat_template(tokenizer: Any, config: Any) -> bool:
         return False
 
     dataset_config = config_value(config, "dataset", {})
-    if not config_value(dataset_config, "apply_chat_template", False):
+    if not bool(config_value(dataset_config, "apply_chat_template", config_value(dataset_config, "chat_template", False))):
         return False
 
     tokenizer_config = config_value(config, "tokenizer", {})
@@ -217,14 +217,6 @@ def load_tokenizer(config: Any):
                 LOGGER.warning(
                     "Tokenizer '%s' did not define a chat template; applied the explicitly configured template.",
                     candidate,
-                )
-            elif (
-                config_value(config_value(config, "dataset", {}), "apply_chat_template", False)
-                and not getattr(tokenizer, "chat_template", None)
-            ):
-                raise ValueError(
-                    f"Tokenizer '{candidate}' does not provide a chat template. "
-                    "Disable dataset.apply_chat_template or configure tokenizer.chat_template explicitly."
                 )
             return tokenizer
         except Exception as exc:  # pragma: no cover
