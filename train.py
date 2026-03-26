@@ -1,4 +1,5 @@
 import argparse
+import logging
 from omegaconf import OmegaConf
 
 import torch
@@ -8,7 +9,11 @@ from trl import set_seed
 
 from config import EpsilonDPOConfig
 from preference_data import HH_DATASET_NAME, HH_SUBSETS, config_value, load_preference_dataset
+from tokenizer_utils import load_tokenizer
 from trainer import EpsilonDPOTrainer
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def main(config):
@@ -17,7 +22,16 @@ def main(config):
     model_name = config.model.pretrained_model_name_or_path
     model = AutoModelForCausalLM.from_pretrained(**config.model, torch_dtype=torch.bfloat16)
     ref_model = AutoModelForCausalLM.from_pretrained(**config.model, torch_dtype=torch.bfloat16)
-    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+    except Exception as exc:
+        LOGGER.warning(
+            "AutoTokenizer.from_pretrained(%s, use_fast=True) failed; falling back to the local tokenizer loader (%s: %s).",
+            model_name,
+            type(exc).__name__,
+            exc,
+        )
+        tokenizer = load_tokenizer({"model": {"pretrained_model_name_or_path": model_name}})
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
 
