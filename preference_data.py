@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 from typing import Any, Mapping
@@ -16,12 +17,44 @@ HH_HUMAN_MARKER = "\n\nHuman:"
 HH_ASSISTANT_MARKER = "\n\nAssistant:"
 HH_DATASET_NAME = "Anthropic/hh-rlhf"
 HH_SUBSETS = {"helpful-base", "harmless-base"}
+SAMPLE_PREVIEW_CHARS = 512
 
 
 def config_value(config: Any, key: str, default: Any = None) -> Any:
     if hasattr(config, "get"):
         return config.get(key, default)
     return getattr(config, key, default)
+
+
+def _is_primary_process() -> bool:
+    return os.environ.get("RANK", "0") == "0"
+
+
+def _truncate_preview(text: Any, limit: int = SAMPLE_PREVIEW_CHARS) -> str:
+    normalized = _normalize_text(text)
+    if len(normalized) <= limit:
+        return normalized
+    return normalized[:limit] + "\n...<truncated>..."
+
+
+def print_preprocessed_sample(dataset: Any, *, split: str) -> None:
+    if not _is_primary_process():
+        return
+    if len(dataset) == 0:
+        return
+
+    row = dataset[0]
+    print(f"\n[preprocessed-sample] split={split} columns={list(dataset.column_names)}")
+    if "prompt" in row:
+        print("[prompt]")
+        print(_truncate_preview(row["prompt"]))
+    if "chosen" in row:
+        print("[chosen]")
+        print(_truncate_preview(row["chosen"]))
+    if "rejected" in row:
+        print("[rejected]")
+        print(_truncate_preview(row["rejected"]))
+    print()
 
 
 def _normalize_text(text: Any) -> str:
@@ -501,7 +534,7 @@ def load_preference_dataset(
     dataset_name = config_value(dataset_config, "name", config_value(dataset_config, "dataset_name"))
     data_dir = config_value(dataset_config, "data_dir", config_value(dataset_config, "config_name"))
     if dataset_name == HH_DATASET_NAME and data_dir in HH_SUBSETS:
-        return load_hh_dataset(
+        dataset = load_hh_dataset(
             dataset_config=dataset_config,
             split=split,
             tokenizer=tokenizer,
@@ -509,6 +542,8 @@ def load_preference_dataset(
             max_prompt_length=training_args.max_prompt_length,
             model_name=model_name or getattr(tokenizer, "name_or_path", ""),
         )
+        print_preprocessed_sample(dataset, split=split)
+        return dataset
 
     from datasets import load_dataset
 
@@ -517,4 +552,6 @@ def load_preference_dataset(
     if config_name is not None:
         load_kwargs["name"] = config_name
     dataset_dict = load_dataset(**load_kwargs)
-    return select_preference_columns(dataset_dict[split])
+    dataset = select_preference_columns(dataset_dict[split])
+    print_preprocessed_sample(dataset, split=split)
+    return dataset
