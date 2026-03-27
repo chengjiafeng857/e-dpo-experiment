@@ -11,7 +11,7 @@ dataset:
 
 training_args:
   run_name: "llama3_hh_harmless_base"
-  output_dir: "/workspace/experiments/llama3_hh_harmless_base"
+  output_dir: "model_outputs/llama3_hh_harmless_base"
   bf16: True
   beta: 0.1
   epsilon: 0.01
